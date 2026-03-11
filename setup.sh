@@ -12,13 +12,14 @@
 set -e
 
 # curl | bash 감지: stdin이 파이프이면 파일로 저장 후 재실행
-if [ ! -t 0 ] && [ -z "$_CLAUDE_SETUP_REEXEC" ]; then
-    export _CLAUDE_SETUP_REEXEC=1
-    TMPFILE="/tmp/myclaude_setup_$$.sh"
-    curl -fsSL "https://tbe.kr/myclaude_setup.sh" -o "$TMPFILE"
-    bash "$TMPFILE" </dev/tty
-    rm -f "$TMPFILE"
-    exit $?
+if [ ! -t 0 ]; then
+    _SCRIPT="/tmp/_claude_setup.sh"
+    cat > "$_SCRIPT"
+    chmod +x "$_SCRIPT"
+    bash "$_SCRIPT" < /dev/tty
+    _EXIT=$?
+    rm -f "$_SCRIPT"
+    exit $_EXIT
 fi
 
 # ── 색상 ──
@@ -316,5 +317,3 @@ echo -e "  2. cd $PROJECT_DIR && claude 로 시작"
 echo -e "  3. Claude에게 할 일을 지시하세요!"
 echo ""
 
-# 임시 파일 정리
-rm -f "$0" 2>/dev/null || true

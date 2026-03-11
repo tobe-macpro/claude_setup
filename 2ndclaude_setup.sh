@@ -10,6 +10,16 @@
 
 set -e
 
+# curl | bash 호환: stdin을 /dev/tty에서 읽기
+exec 3</dev/tty 2>/dev/null || true
+TTY_READ() {
+    if [ -t 3 ]; then
+        read "$@" <&3
+    else
+        read "$@" </dev/tty
+    fi
+}
+
 # ── 색상 ──
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -36,16 +46,16 @@ echo -e "${GREEN}✓${NC} Claude Code: $(claude --version 2>/dev/null || echo 'i
 # ── 1. 에이전트 이름/디렉토리 ──
 echo -e "${YELLOW}[1/4]${NC} 에이전트 설정..."
 echo ""
-read -p "  에이전트 이름 (예: monitor, support, dev): " AGENT_NAME
+TTY_READ -p "  에이전트 이름 (예: monitor, support, dev): " AGENT_NAME
 AGENT_NAME="${AGENT_NAME:-agent2}"
 
 DEFAULT_DIR="$HOME/claude-${AGENT_NAME}"
-read -p "  프로젝트 디렉토리 [$DEFAULT_DIR]: " PROJECT_DIR
+TTY_READ -p "  프로젝트 디렉토리 [$DEFAULT_DIR]: " PROJECT_DIR
 PROJECT_DIR="${PROJECT_DIR:-$DEFAULT_DIR}"
 
 if [ -d "$PROJECT_DIR" ]; then
     echo -e "  ${YELLOW}⚠${NC} 디렉토리가 이미 존재합니다: $PROJECT_DIR"
-    read -p "  계속하시겠습니까? [y/N]: " CONTINUE
+    TTY_READ -p "  계속하시겠습니까? [y/N]: " CONTINUE
     if [[ ! "$CONTINUE" =~ ^[Yy]$ ]]; then
         echo "중단합니다."
         exit 0
@@ -65,11 +75,11 @@ echo "  3) 로컬 파일 경로 지정"
 echo "  4) 기존 CLAUDE.md 복사 (다른 에이전트에서)"
 echo "  5) 나중에 직접 작성"
 echo ""
-read -p "  선택 [1/2/3/4/5]: " CLAUDE_MD_CHOICE
+TTY_READ -p "  선택 [1/2/3/4/5]: " CLAUDE_MD_CHOICE
 
 case "$CLAUDE_MD_CHOICE" in
     1)
-        read -p "  CLAUDE.md URL: " CLAUDE_MD_URL
+        TTY_READ -p "  CLAUDE.md URL: " CLAUDE_MD_URL
         if [ -n "$CLAUDE_MD_URL" ]; then
             curl -fsSL "$CLAUDE_MD_URL" -o "$PROJECT_DIR/CLAUDE.md"
             echo -e "  ${GREEN}✓${NC} CLAUDE.md 다운로드 완료"
@@ -78,7 +88,7 @@ case "$CLAUDE_MD_CHOICE" in
     2)
         echo ""
         echo "  노션 페이지를 업무 매뉴얼로 사용합니다."
-        read -p "  노션 페이지 URL/ID: " NOTION_PAGE
+        TTY_READ -p "  노션 페이지 URL/ID: " NOTION_PAGE
 
         NOTION_PAGE_ID=$(echo "$NOTION_PAGE" | grep -oE '[a-f0-9]{32}' | tail -1)
         if [ -z "$NOTION_PAGE_ID" ]; then
@@ -106,7 +116,7 @@ NOTIONMD
         echo -e "  ${GREEN}✓${NC} 노션 연동 CLAUDE.md 생성 완료"
         ;;
     3)
-        read -p "  CLAUDE.md 파일 경로: " CLAUDE_MD_PATH
+        TTY_READ -p "  CLAUDE.md 파일 경로: " CLAUDE_MD_PATH
         if [ -f "$CLAUDE_MD_PATH" ]; then
             cp "$CLAUDE_MD_PATH" "$PROJECT_DIR/CLAUDE.md"
             echo -e "  ${GREEN}✓${NC} CLAUDE.md 복사 완료"
@@ -115,7 +125,7 @@ NOTIONMD
         fi
         ;;
     4)
-        read -p "  복사할 CLAUDE.md 경로 (예: ~/claude-agent/CLAUDE.md): " SRC_PATH
+        TTY_READ -p "  복사할 CLAUDE.md 경로 (예: ~/claude-agent/CLAUDE.md): " SRC_PATH
         if [ -f "$SRC_PATH" ]; then
             cp "$SRC_PATH" "$PROJECT_DIR/CLAUDE.md"
             echo -e "  ${GREEN}✓${NC} CLAUDE.md 복사 완료"
@@ -134,10 +144,10 @@ echo ""
 echo -e "  ${YELLOW}⚠ 주의: 기존 에이전트와 다른 봇을 사용해야 합니다!${NC}"
 echo "  같은 봇으로 2개 세션이 폴링하면 409 충돌 발생."
 echo ""
-read -p "  텔레그램 봇을 연동하시겠습니까? [y/N]: " USE_TELEGRAM
+TTY_READ -p "  텔레그램 봇을 연동하시겠습니까? [y/N]: " USE_TELEGRAM
 
 if [[ "$USE_TELEGRAM" =~ ^[Yy]$ ]]; then
-    read -p "  Bot Token (@BotFather → /newbot으로 새로 생성): " BOT_TOKEN
+    TTY_READ -p "  Bot Token (@BotFather → /newbot으로 새로 생성): " BOT_TOKEN
 
     # Chat ID 자동 감지
     echo "  Chat ID 자동 감지 중..."
@@ -154,13 +164,13 @@ except: pass
 
     if [ -n "$CHAT_ID" ]; then
         echo -e "  ${GREEN}✓${NC} Chat ID 감지: $CHAT_ID"
-        read -p "  이 Chat ID가 맞습니까? [Y/n]: " CONFIRM_CHAT
+        TTY_READ -p "  이 Chat ID가 맞습니까? [Y/n]: " CONFIRM_CHAT
         if [[ "$CONFIRM_CHAT" =~ ^[Nn]$ ]]; then
-            read -p "  올바른 Chat ID를 입력하세요: " CHAT_ID
+            TTY_READ -p "  올바른 Chat ID를 입력하세요: " CHAT_ID
         fi
     else
         echo -e "  ${YELLOW}→${NC} 봇에게 아무 메시지를 보낸 후 Enter를 눌러주세요."
-        read -p "  (메시지 보냈으면 Enter): "
+        TTY_READ -p "  (메시지 보냈으면 Enter): "
         UPDATES=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=5" 2>/dev/null)
         CHAT_ID=$(echo "$UPDATES" | python3 -c "
 import sys, json
@@ -173,7 +183,7 @@ except: pass
         if [ -n "$CHAT_ID" ]; then
             echo -e "  ${GREEN}✓${NC} Chat ID 감지: $CHAT_ID"
         else
-            read -p "  Chat ID를 직접 입력하세요: " CHAT_ID
+            TTY_READ -p "  Chat ID를 직접 입력하세요: " CHAT_ID
         fi
     fi
 
@@ -226,7 +236,7 @@ fi
 # ── 4. 자동시작 (선택) ──
 echo -e "${YELLOW}[4/4]${NC} 맥 로그인 시 자동시작..."
 echo ""
-read -p "  맥 부팅 시 자동 시작하시겠습니까? [y/N]: " AUTO_START
+TTY_READ -p "  맥 부팅 시 자동 시작하시겠습니까? [y/N]: " AUTO_START
 
 if [[ "$AUTO_START" =~ ^[Yy]$ ]]; then
     mkdir -p ~/Applications
@@ -277,8 +287,11 @@ echo -e "  🔄 자동시작: source $PROJECT_DIR/autostart.sh"
 echo ""
 
 # ── 바로 시작? ──
-read -p "  지금 바로 에이전트를 시작하시겠습니까? [y/N]: " START_NOW
+TTY_READ -p "  지금 바로 에이전트를 시작하시겠습니까? [y/N]: " START_NOW
 if [[ "$START_NOW" =~ ^[Yy]$ ]]; then
     echo ""
     source "$PROJECT_DIR/autostart.sh"
 fi
+
+# fd 3 정리
+exec 3<&- 2>/dev/null || true

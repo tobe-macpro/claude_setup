@@ -66,10 +66,11 @@ echo -e "${YELLOW}[4/6]${NC} 업무 매뉴얼 설정..."
 echo ""
 echo "  CLAUDE.md는 Claude가 시작할 때 자동으로 읽는 업무 지시서입니다."
 echo "  1) URL에서 다운로드 (GitHub raw URL 등)"
-echo "  2) 로컬 파일 경로 지정"
-echo "  3) 나중에 직접 작성"
+echo "  2) 노션(Notion) 페이지에서 가져오기"
+echo "  3) 로컬 파일 경로 지정"
+echo "  4) 나중에 직접 작성"
 echo ""
-read -p "  선택 [1/2/3]: " CLAUDE_MD_CHOICE
+read -p "  선택 [1/2/3/4]: " CLAUDE_MD_CHOICE
 
 case "$CLAUDE_MD_CHOICE" in
     1)
@@ -80,6 +81,52 @@ case "$CLAUDE_MD_CHOICE" in
         fi
         ;;
     2)
+        echo ""
+        echo "  노션 페이지를 CLAUDE.md로 사용합니다."
+        echo "  노션 페이지 URL 또는 페이지 ID를 입력하세요."
+        echo "  (예: https://www.notion.so/My-Page-abc123...)"
+        echo ""
+        read -p "  노션 페이지 URL/ID: " NOTION_PAGE
+
+        # URL에서 페이지 ID 추출
+        NOTION_PAGE_ID=$(echo "$NOTION_PAGE" | grep -oE '[a-f0-9]{32}' | tail -1)
+        if [ -z "$NOTION_PAGE_ID" ]; then
+            # 하이픈 포함 UUID 형태
+            NOTION_PAGE_ID=$(echo "$NOTION_PAGE" | grep -oE '[a-f0-9-]{36}' | tail -1)
+        fi
+        if [ -z "$NOTION_PAGE_ID" ]; then
+            NOTION_PAGE_ID="$NOTION_PAGE"
+        fi
+
+        # CLAUDE.md에 노션 연동 지시 작성
+        cat > "$PROJECT_DIR/CLAUDE.md" << NOTIONMD
+# 업무 매뉴얼
+
+## 노션 연동
+이 에이전트의 업무 매뉴얼은 노션에서 관리됩니다.
+시작할 때 아래 노션 페이지를 읽고 지시사항을 따르세요.
+
+- 노션 페이지 ID: $NOTION_PAGE_ID
+- 원본 URL: $NOTION_PAGE
+
+## 사용법
+Claude 시작 시 Notion MCP를 사용하여 위 페이지를 fetch하고,
+그 내용을 업무 지시서로 삼아 작업을 수행합니다.
+
+\`\`\`
+# Claude가 시작 시 실행할 명령 (자동)
+# mcp__claude_ai_Notion__notion-fetch 로 페이지 내용을 읽습니다
+\`\`\`
+NOTIONMD
+
+        # .env에 노션 페이지 ID 저장
+        echo "NOTION_PAGE_ID=$NOTION_PAGE_ID" >> "$PROJECT_DIR/.env" 2>/dev/null || \
+        echo "NOTION_PAGE_ID=$NOTION_PAGE_ID" > "$PROJECT_DIR/.env"
+
+        echo -e "  ${GREEN}✓${NC} 노션 연동 CLAUDE.md 생성 완료"
+        echo -e "  ${YELLOW}→${NC} Claude가 시작할 때 노션 페이지를 자동으로 읽습니다."
+        ;;
+    3)
         read -p "  CLAUDE.md 파일 경로: " CLAUDE_MD_PATH
         if [ -f "$CLAUDE_MD_PATH" ]; then
             cp "$CLAUDE_MD_PATH" "$PROJECT_DIR/CLAUDE.md"
@@ -88,7 +135,7 @@ case "$CLAUDE_MD_CHOICE" in
             echo -e "  ${RED}✗${NC} 파일을 찾을 수 없습니다: $CLAUDE_MD_PATH"
         fi
         ;;
-    3)
+    4)
         echo -e "  ${YELLOW}→${NC} 나중에 $PROJECT_DIR/CLAUDE.md 를 직접 작성하세요."
         ;;
 esac

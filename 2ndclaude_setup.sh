@@ -153,7 +153,11 @@ except: pass
 " 2>/dev/null)
 
     if [ -n "$CHAT_ID" ]; then
-        echo -e "  ${GREEN}✓${NC} Chat ID 자동 감지: $CHAT_ID"
+        echo -e "  ${GREEN}✓${NC} Chat ID 감지: $CHAT_ID"
+        read -p "  이 Chat ID가 맞습니까? [Y/n]: " CONFIRM_CHAT
+        if [[ "$CONFIRM_CHAT" =~ ^[Nn]$ ]]; then
+            read -p "  올바른 Chat ID를 입력하세요: " CHAT_ID
+        fi
     else
         echo -e "  ${YELLOW}→${NC} 봇에게 아무 메시지를 보낸 후 Enter를 눌러주세요."
         read -p "  (메시지 보냈으면 Enter): "

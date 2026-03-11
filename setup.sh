@@ -12,11 +12,13 @@
 set -e
 
 # curl | bash 감지: stdin이 파이프이면 파일로 저장 후 재실행
-if [ ! -t 0 ]; then
+if [ ! -t 0 ] && [ -z "$_CLAUDE_SETUP_REEXEC" ]; then
+    export _CLAUDE_SETUP_REEXEC=1
     TMPFILE="/tmp/myclaude_setup_$$.sh"
     curl -fsSL "https://tbe.kr/myclaude_setup.sh" -o "$TMPFILE"
-    exec bash "$TMPFILE"
-    exit 0
+    bash "$TMPFILE" </dev/tty
+    rm -f "$TMPFILE"
+    exit $?
 fi
 
 # ── 색상 ──

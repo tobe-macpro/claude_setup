@@ -40,6 +40,19 @@ echo -e "  ${GREEN}✓${NC} Homebrew: $(brew --version | head -1)"
 if ! command -v node &>/dev/null; then
     echo "  Node.js 설치 중..."
     brew install node
+else
+    # 버전 체크 (v20 이상 필요)
+    NODE_VER=$(node --version | sed 's/v//' | cut -d. -f1)
+    if [ "$NODE_VER" -lt 20 ] 2>/dev/null; then
+        echo -e "  ${YELLOW}⚠${NC} Node.js $(node --version) → v20 이상 필요"
+        echo "  Node.js 업그레이드 중..."
+        if command -v nvm &>/dev/null; then
+            nvm install 22
+            nvm alias default 22
+        else
+            brew upgrade node
+        fi
+    fi
 fi
 echo -e "  ${GREEN}✓${NC} Node.js: $(node --version)"
 

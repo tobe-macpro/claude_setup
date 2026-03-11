@@ -147,7 +147,41 @@ read -p "  텔레그램 봇을 연동하시겠습니까? [y/N]: " USE_TELEGRAM
 
 if [[ "$USE_TELEGRAM" =~ ^[Yy]$ ]]; then
     read -p "  Bot Token (@BotFather에서 발급): " BOT_TOKEN
-    read -p "  Chat ID (본인 ID): " CHAT_ID
+
+    # Chat ID 자동 감지
+    echo "  Chat ID 자동 감지 중..."
+    CHAT_ID=""
+    UPDATES=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=5" 2>/dev/null)
+    CHAT_ID=$(echo "$UPDATES" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if data.get('result'):
+        print(data['result'][-1]['message']['chat']['id'])
+except: pass
+" 2>/dev/null)
+
+    if [ -n "$CHAT_ID" ]; then
+        echo -e "  ${GREEN}✓${NC} Chat ID 자동 감지: $CHAT_ID"
+    else
+        echo -e "  ${YELLOW}→${NC} 봇에게 아무 메시지를 보낸 후 Enter를 눌러주세요."
+        read -p "  (메시지 보냈으면 Enter): "
+        UPDATES=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=5" 2>/dev/null)
+        CHAT_ID=$(echo "$UPDATES" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if data.get('result'):
+        print(data['result'][-1]['message']['chat']['id'])
+except: pass
+" 2>/dev/null)
+        if [ -n "$CHAT_ID" ]; then
+            echo -e "  ${GREEN}✓${NC} Chat ID 감지: $CHAT_ID"
+        else
+            read -p "  Chat ID를 직접 입력하세요: " CHAT_ID
+        fi
+    fi
+
     read -p "  봇 이름 (표시용): " BOT_NAME
     BOT_NAME="${BOT_NAME:-my-claude-bot}"
 
